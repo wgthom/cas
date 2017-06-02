@@ -11,7 +11,6 @@ import de.flapdoodle.embed.memcached.config.RuntimeConfigBuilder;
 import de.flapdoodle.embed.memcached.distribution.Version;
 import de.flapdoodle.embed.process.config.store.IDownloadConfig;
 import de.flapdoodle.embed.process.io.progress.StandardConsoleProgressListener;
-import org.slf4j.Logger;
 
 import java.net.Socket;
 
@@ -25,12 +24,10 @@ import static org.slf4j.LoggerFactory.getLogger;
  */
 public abstract class AbstractMemcachedTests {
 
-    private static final int PORT = 11211;
+    private static final int PORT = 14938;
 
     private static MemcachedExecutable MEMCACHED_EXECUTABLE;
     private static MemcachedProcess MEMCACHED;
-
-    protected transient Logger logger = getLogger(this.getClass());
 
     public static void bootstrap() {
         try {
@@ -53,7 +50,7 @@ public abstract class AbstractMemcachedTests {
     }
 
     public boolean isMemcachedListening() {
-        try (Socket socket = new Socket("127.0.0.1", PORT)) {
+        try (Socket socket = new Socket("memcached-14938.c10.us-east-1-3.ec2.cloud.redislabs.com", PORT)) {
             return true;
         } catch (final Exception e) {
             return false;

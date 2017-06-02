@@ -1,9 +1,16 @@
 package org.apereo.cas.configuration.model.support.mfa;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.configuration.model.support.jpa.AbstractJpaProperties;
+import org.apereo.cas.configuration.model.support.mongo.AbstractMongoClientProperties;
+import org.apereo.cas.configuration.support.AbstractConfigProperties;
+import org.apereo.cas.configuration.support.Beans;
+import org.springframework.core.io.Resource;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -12,21 +19,79 @@ import java.util.concurrent.TimeUnit;
  * @author Dmitriy Kopylenko
  * @since 5.0.0
  */
-
-public class MultifactorAuthenticationProperties {
+public class MultifactorAuthenticationProperties implements Serializable {
+    private static final long serialVersionUID = 7416521468929733907L;
 
     private String authenticationContextAttribute = "authnContextClass";
     private String globalFailureMode = "CLOSED";
     private String requestParameter = "authn_method";
-    private String globalPrincipalAttributeNameTriggers = "memberOf,eduPersonPrimaryAffiliation";
+
+    private String restEndpoint;
+
+    private Resource groovyScript;
+
+    private Resource globalPrincipalAttributePredicate;
+    private String globalPrincipalAttributeNameTriggers;
+    private String globalPrincipalAttributeValueRegex;
+
+    private String globalAuthenticationAttributeNameTriggers;
+    private String globalAuthenticationAttributeValueRegex;
+
     private String contentType = "application/cas";
+    private String globalProviderId;
+
+    private String grouperGroupField;
+
+    private Resource providerSelectorGroovyScript;
     
+    private U2F u2f = new U2F();
+    private Azure azure = new Azure();
     private Trusted trusted = new Trusted();
     private YubiKey yubikey = new YubiKey();
     private Radius radius = new Radius();
     private GAuth gauth = new GAuth();
-    private Duo duo = new Duo();
+    private List<Duo> duo = new ArrayList<>();
     private Authy authy = new Authy();
+
+    public Resource getGlobalPrincipalAttributePredicate() {
+        return globalPrincipalAttributePredicate;
+    }
+
+    public void setGlobalPrincipalAttributePredicate(final Resource globalPrincipalAttributePredicate) {
+        this.globalPrincipalAttributePredicate = globalPrincipalAttributePredicate;
+    }
+
+    public Resource getProviderSelectorGroovyScript() {
+        return providerSelectorGroovyScript;
+    }
+
+    public void setProviderSelectorGroovyScript(final Resource providerSelectorGroovyScript) {
+        this.providerSelectorGroovyScript = providerSelectorGroovyScript;
+    }
+
+    public Resource getGroovyScript() {
+        return groovyScript;
+    }
+
+    public void setGroovyScript(final Resource groovyScript) {
+        this.groovyScript = groovyScript;
+    }
+
+    public U2F getU2f() {
+        return u2f;
+    }
+
+    public void setU2f(final U2F u2f) {
+        this.u2f = u2f;
+    }
+
+    public Azure getAzure() {
+        return azure;
+    }
+
+    public void setAzure(final Azure azure) {
+        this.azure = azure;
+    }
 
     public Trusted getTrusted() {
         return trusted;
@@ -44,12 +109,44 @@ public class MultifactorAuthenticationProperties {
         this.authy = authy;
     }
 
+    public String getRestEndpoint() {
+        return restEndpoint;
+    }
+
+    public void setRestEndpoint(final String restEndpoint) {
+        this.restEndpoint = restEndpoint;
+    }
+
     public String getRequestParameter() {
         return requestParameter;
     }
 
     public void setRequestParameter(final String requestParameter) {
         this.requestParameter = requestParameter;
+    }
+
+    public String getGlobalAuthenticationAttributeNameTriggers() {
+        return globalAuthenticationAttributeNameTriggers;
+    }
+
+    public void setGlobalAuthenticationAttributeNameTriggers(final String globalAuthenticationAttributeNameTriggers) {
+        this.globalAuthenticationAttributeNameTriggers = globalAuthenticationAttributeNameTriggers;
+    }
+
+    public String getGlobalAuthenticationAttributeValueRegex() {
+        return globalAuthenticationAttributeValueRegex;
+    }
+
+    public void setGlobalAuthenticationAttributeValueRegex(final String globalAuthenticationAttributeValueRegex) {
+        this.globalAuthenticationAttributeValueRegex = globalAuthenticationAttributeValueRegex;
+    }
+
+    public String getGlobalPrincipalAttributeValueRegex() {
+        return globalPrincipalAttributeValueRegex;
+    }
+
+    public void setGlobalPrincipalAttributeValueRegex(final String globalPrincipalAttributeValueRegex) {
+        this.globalPrincipalAttributeValueRegex = globalPrincipalAttributeValueRegex;
     }
 
     public String getGlobalPrincipalAttributeNameTriggers() {
@@ -60,11 +157,19 @@ public class MultifactorAuthenticationProperties {
         this.globalPrincipalAttributeNameTriggers = globalPrincipalAttributeNameTriggers;
     }
 
-    public Duo getDuo() {
+    public String getGrouperGroupField() {
+        return grouperGroupField;
+    }
+
+    public void setGrouperGroupField(final String grouperGroupField) {
+        this.grouperGroupField = grouperGroupField;
+    }
+
+    public List<Duo> getDuo() {
         return duo;
     }
 
-    public void setDuo(final Duo duo) {
+    public void setDuo(final List<Duo> duo) {
         this.duo = duo;
     }
 
@@ -108,6 +213,14 @@ public class MultifactorAuthenticationProperties {
         this.contentType = contentType;
     }
 
+    public String getGlobalProviderId() {
+        return globalProviderId;
+    }
+
+    public void setGlobalProviderId(final String globalProviderId) {
+        this.globalProviderId = globalProviderId;
+    }
+
     public YubiKey getYubikey() {
         return yubikey;
     }
@@ -116,12 +229,188 @@ public class MultifactorAuthenticationProperties {
         this.yubikey = yubikey;
     }
 
-    public static class YubiKey {
-        private Integer clientId;
-        private String secretKey = "";
+    public abstract static class BaseProvider implements Serializable {
+        private static final long serialVersionUID = -2690281104343633871L;
         private int rank;
+        private String id;
+        private Bypass bypass = new Bypass();
+        private String name;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(final String name) {
+            this.name = name;
+        }
+
+        public Bypass getBypass() {
+            return bypass;
+        }
+
+        public void setBypass(final Bypass bypass) {
+            this.bypass = bypass;
+        }
+
+        public int getRank() {
+            return rank;
+        }
+
+        public void setRank(final int rank) {
+            this.rank = rank;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(final String id) {
+            this.id = id;
+        }
+
+        public static class Bypass implements Serializable {
+            private static final long serialVersionUID = -9181362378365850397L;
+            private String principalAttributeName;
+            private String principalAttributeValue;
+            private String authenticationAttributeName;
+            private String authenticationAttributeValue;
+            private String authenticationHandlerName;
+            private String authenticationMethodName;
+            private String credentialClassType;
+
+            public String getCredentialClassType() {
+                return credentialClassType;
+            }
+
+            public void setCredentialClassType(final String credentialClassType) {
+                this.credentialClassType = credentialClassType;
+            }
+
+            public String getAuthenticationAttributeName() {
+                return authenticationAttributeName;
+            }
+
+            public void setAuthenticationAttributeName(final String authenticationAttributeName) {
+                this.authenticationAttributeName = authenticationAttributeName;
+            }
+
+            public String getAuthenticationAttributeValue() {
+                return authenticationAttributeValue;
+            }
+
+            public void setAuthenticationAttributeValue(final String authenticationAttributeValue) {
+                this.authenticationAttributeValue = authenticationAttributeValue;
+            }
+
+            public String getPrincipalAttributeName() {
+                return principalAttributeName;
+            }
+
+            public void setPrincipalAttributeName(final String principalAttributeName) {
+                this.principalAttributeName = principalAttributeName;
+            }
+
+            public String getPrincipalAttributeValue() {
+                return principalAttributeValue;
+            }
+
+            public void setPrincipalAttributeValue(final String principalAttributeValue) {
+                this.principalAttributeValue = principalAttributeValue;
+            }
+
+            public String getAuthenticationHandlerName() {
+                return authenticationHandlerName;
+            }
+
+            public void setAuthenticationHandlerName(final String authenticationHandlerName) {
+                this.authenticationHandlerName = authenticationHandlerName;
+            }
+
+            public String getAuthenticationMethodName() {
+                return authenticationMethodName;
+            }
+
+            public void setAuthenticationMethodName(final String authenticationMethodName) {
+                this.authenticationMethodName = authenticationMethodName;
+            }
+        }
+    }
+
+    public static class U2F extends BaseProvider {
+        private static final long serialVersionUID = 6151350313777066398L;
+
+        private Memory memory = new Memory();
+        
+        public U2F() {
+            setId("mfa-u2f");
+        }
+
+        public Memory getMemory() {
+            return memory;
+        }
+
+        public void setMemory(final Memory memory) {
+            this.memory = memory;
+        }
+
+        public static class Memory implements Serializable {
+            private long expireRegistrations = 30;
+            private TimeUnit expireRegistrationsTimeUnit = TimeUnit.SECONDS;
+
+            private long expireDevices = 30;
+            private TimeUnit expireDevicesTimeUnit = TimeUnit.DAYS;
+            
+            public long getExpireRegistrations() {
+                return expireRegistrations;
+            }
+
+            public void setExpireRegistrations(final long expireRegistrations) {
+                this.expireRegistrations = expireRegistrations;
+            }
+
+            public TimeUnit getExpireRegistrationsTimeUnit() {
+                return expireRegistrationsTimeUnit;
+            }
+
+            public void setExpireRegistrationsTimeUnit(final TimeUnit expireRegistrationsTimeUnit) {
+                this.expireRegistrationsTimeUnit = expireRegistrationsTimeUnit;
+            }
+
+            public long getExpireDevices() {
+                return expireDevices;
+            }
+
+            public void setExpireDevices(final long expireDevices) {
+                this.expireDevices = expireDevices;
+            }
+
+            public TimeUnit getExpireDevicesTimeUnit() {
+                return expireDevicesTimeUnit;
+            }
+
+            public void setExpireDevicesTimeUnit(final TimeUnit expireDevicesTimeUnit) {
+                this.expireDevicesTimeUnit = expireDevicesTimeUnit;
+            }
+        }
+    }
+
+    public static class YubiKey extends BaseProvider {
+        private static final long serialVersionUID = 9138057706201201089L;
+        private Integer clientId;
+        private String secretKey = StringUtils.EMPTY;
+
+        private Resource jsonFile;
+        private Map<String, String> allowedDevices;
+        
         private List<String> apiUrls = new ArrayList<>();
-        private boolean trustedDeviceEnabled = true;
+        private boolean trustedDeviceEnabled;
+
+        private Jpa jpa = new Jpa();
+        private Mongodb mongodb = new Mongodb();
+
+        public YubiKey() {
+            setId("mfa-yubikey");
+        }
 
         public boolean isTrustedDeviceEnabled() {
             return trustedDeviceEnabled;
@@ -147,14 +436,6 @@ public class MultifactorAuthenticationProperties {
             this.secretKey = secretKey;
         }
 
-        public int getRank() {
-            return rank;
-        }
-
-        public void setRank(final int rank) {
-            this.rank = rank;
-        }
-
         public List<String> getApiUrls() {
             return apiUrls;
         }
@@ -162,18 +443,63 @@ public class MultifactorAuthenticationProperties {
         public void setApiUrls(final List<String> apiUrls) {
             this.apiUrls = apiUrls;
         }
+
+        public Resource getJsonFile() {
+            return jsonFile;
+        }
+
+        public void setJsonFile(final Resource jsonFile) {
+            this.jsonFile = jsonFile;
+        }
+
+        public Map<String, String> getAllowedDevices() {
+            return allowedDevices;
+        }
+
+        public void setAllowedDevices(final Map<String, String> allowedDevices) {
+            this.allowedDevices = allowedDevices;
+        }
+        
+        public Jpa getJpa() {
+            return jpa;
+        }
+
+        public void setJpa(final Jpa jpa) {
+            this.jpa = jpa;
+        }
+
+        public Mongodb getMongodb() {
+            return mongodb;
+        }
+
+        public void setMongodb(final Mongodb mongodb) {
+            this.mongodb = mongodb;
+        }
+
+        public static class Jpa extends AbstractJpaProperties {
+        }
+
+        public static class Mongodb extends AbstractMongoClientProperties {
+            public Mongodb() {
+                setCollection("MongoDbYubiKeyRepository");
+            }
+        }
     }
 
-    public static class Radius {
-        private int rank;
-
+    public static class Radius extends BaseProvider {
+        private static final long serialVersionUID = 7021301814775348087L;
         private boolean failoverOnException;
         private boolean failoverOnAuthenticationFailure;
 
         private Server server = new Server();
         private Client client = new Client();
 
-        private boolean trustedDeviceEnabled = true;
+        private boolean trustedDeviceEnabled;
+
+
+        public Radius() {
+            setId("mfa-radius");
+        }
 
         public boolean isTrustedDeviceEnabled() {
             return trustedDeviceEnabled;
@@ -182,7 +508,7 @@ public class MultifactorAuthenticationProperties {
         public void setTrustedDeviceEnabled(final boolean trustedDeviceEnabled) {
             this.trustedDeviceEnabled = trustedDeviceEnabled;
         }
-        
+
         public boolean isFailoverOnException() {
             return failoverOnException;
         }
@@ -197,14 +523,6 @@ public class MultifactorAuthenticationProperties {
 
         public void setFailoverOnAuthenticationFailure(final boolean failoverOnAuthenticationFailure) {
             this.failoverOnAuthenticationFailure = failoverOnAuthenticationFailure;
-        }
-
-        public int getRank() {
-            return rank;
-        }
-
-        public void setRank(final int rank) {
-            this.rank = rank;
         }
 
         public Server getServer() {
@@ -223,7 +541,7 @@ public class MultifactorAuthenticationProperties {
             this.client = client;
         }
 
-        public static class Server {
+        public static class Server implements Serializable {
             private String protocol = "EAP_MSCHAPv2";
             private int retries = 3;
             private String nasIdentifier;
@@ -309,7 +627,7 @@ public class MultifactorAuthenticationProperties {
 
         }
 
-        public static class Client {
+        public static class Client implements Serializable {
             private String inetAddress = "localhost";
             private String sharedSecret = "N0Sh@ar3d$ecReT";
             private int socketTimeout;
@@ -358,13 +676,18 @@ public class MultifactorAuthenticationProperties {
         }
     }
 
-    public static class Duo {
-        private int rank;
+    public static class Duo extends BaseProvider {
+        private static final long serialVersionUID = -4445375354167880807L;
         private String duoIntegrationKey;
         private String duoSecretKey;
         private String duoApplicationKey;
         private String duoApiHost;
-        private boolean trustedDeviceEnabled = true;
+
+        private boolean trustedDeviceEnabled;
+
+        public Duo() {
+            setId("mfa-duo");
+        }
 
         public boolean isTrustedDeviceEnabled() {
             return trustedDeviceEnabled;
@@ -372,13 +695,6 @@ public class MultifactorAuthenticationProperties {
 
         public void setTrustedDeviceEnabled(final boolean trustedDeviceEnabled) {
             this.trustedDeviceEnabled = trustedDeviceEnabled;
-        }
-        public int getRank() {
-            return rank;
-        }
-
-        public void setRank(final int rank) {
-            this.rank = rank;
         }
 
         public String getDuoIntegrationKey() {
@@ -414,13 +730,27 @@ public class MultifactorAuthenticationProperties {
         }
     }
 
-    public static class Authy {
+    public static class Authy extends BaseProvider {
+        private static final long serialVersionUID = -3746749663459157641L;
         private String apiKey;
         private String apiUrl;
         private String phoneAttribute = "phone";
         private String mailAttribute = "mail";
+        private String countryCode = "1";
         private boolean forceVerification = true;
-        private boolean trustedDeviceEnabled = true;
+        private boolean trustedDeviceEnabled;
+
+        public Authy() {
+            setId("mfa-authy");
+        }
+
+        public String getCountryCode() {
+            return countryCode;
+        }
+
+        public void setCountryCode(final String countryCode) {
+            this.countryCode = countryCode;
+        }
 
         public boolean isTrustedDeviceEnabled() {
             return trustedDeviceEnabled;
@@ -429,7 +759,7 @@ public class MultifactorAuthenticationProperties {
         public void setTrustedDeviceEnabled(final boolean trustedDeviceEnabled) {
             this.trustedDeviceEnabled = trustedDeviceEnabled;
         }
-        
+
         public String getPhoneAttribute() {
             return phoneAttribute;
         }
@@ -471,27 +801,28 @@ public class MultifactorAuthenticationProperties {
         }
     }
 
-    public static class Trusted {
+    public static class Trusted extends BaseProvider {
+        private static final long serialVersionUID = 1505013239016790473L;
         private String authenticationContextAttribute = "isFromTrustedMultifactorAuthentication";
-        
-        private String encryptionKey = "";
 
-        private String signingKey = "";
+        private String encryptionKey = StringUtils.EMPTY;
+
+        private String signingKey = StringUtils.EMPTY;
 
         private boolean cipherEnabled = true;
 
         private boolean deviceRegistrationEnabled = true;
 
         private long expiration = 30;
-        
+
         private TimeUnit timeUnit = TimeUnit.DAYS;
 
         private Rest rest = new Rest();
-        
+
         private Jpa jpa = new Jpa();
 
         private Cleaner cleaner = new Cleaner();
-        
+
         private Mongodb mongodb = new Mongodb();
 
         public Rest getRest() {
@@ -565,7 +896,7 @@ public class MultifactorAuthenticationProperties {
         public void setCipherEnabled(final boolean cipherEnabled) {
             this.cipherEnabled = cipherEnabled;
         }
-        
+
         public boolean isDeviceRegistrationEnabled() {
             return deviceRegistrationEnabled;
         }
@@ -582,7 +913,7 @@ public class MultifactorAuthenticationProperties {
             this.cleaner = cleaner;
         }
 
-        public static class Rest {
+        public static class Rest implements Serializable {
             private String endpoint;
 
             public String getEndpoint() {
@@ -593,45 +924,22 @@ public class MultifactorAuthenticationProperties {
                 this.endpoint = endpoint;
             }
         }
-        
+
         public static class Jpa extends AbstractJpaProperties {
         }
 
-        public static class Mongodb {
-            private String clientUri = "";
-            private String collection = "MongoDbCasTrustedAuthnMfaRepository";
-            private boolean dropCollection;
-
-            public String getClientUri() {
-                return clientUri;
-            }
-
-            public void setClientUri(final String clientUri) {
-                this.clientUri = clientUri;
-            }
-
-            public String getCollection() {
-                return collection;
-            }
-
-            public void setCollection(final String collection) {
-                this.collection = collection;
-            }
-
-            public boolean isDropCollection() {
-                return dropCollection;
-            }
-
-            public void setDropCollection(final boolean dropCollection) {
-                this.dropCollection = dropCollection;
+        public static class Mongodb extends AbstractMongoClientProperties {
+            public Mongodb() {
+                setCollection("MongoDbCasTrustedAuthnMfaRepository");
             }
         }
 
         public static class Cleaner {
             private boolean enabled = true;
-            private long startDelay = 10000;
-            private long repeatInterval = 60000;
-            
+            private String startDelay = "PT15S";
+
+            private String repeatInterval = "PT2M";
+
             public boolean isEnabled() {
                 return enabled;
             }
@@ -641,33 +949,142 @@ public class MultifactorAuthenticationProperties {
             }
 
             public long getStartDelay() {
-                return startDelay;
+                return Beans.newDuration(startDelay).toMillis();
             }
 
-            public void setStartDelay(final long startDelay) {
+            public void setStartDelay(final String startDelay) {
                 this.startDelay = startDelay;
             }
 
             public long getRepeatInterval() {
-                return repeatInterval;
+                return Beans.newDuration(repeatInterval).toMillis();
             }
 
-            public void setRepeatInterval(final long repeatInterval) {
+            public void setRepeatInterval(final String repeatInterval) {
                 this.repeatInterval = repeatInterval;
             }
         }
     }
-    
-    public static class GAuth {
+
+    public static class Azure extends BaseProvider {
+        private static final long serialVersionUID = 6726032660671158922L;
+
+        /**
+         * The enum Authentication modes.
+         */
+        public enum AuthenticationModes {
+            /**
+             * Ask the user to only press the pound sign.
+             */
+            POUND,
+            /**
+             * Ask the user to enter pin code shown on the screen.
+             */
+            PIN
+        }
+
+        private String phoneAttributeName = "phone";
+        private String configDir;
+        private String privateKeyPassword;
+        private AuthenticationModes mode = AuthenticationModes.POUND;
+        private boolean allowInternationalCalls;
+
+        public Azure() {
+            setId("mfa-azure");
+        }
+
+        public String getPhoneAttributeName() {
+            return phoneAttributeName;
+        }
+
+        public void setPhoneAttributeName(final String phoneAttributeName) {
+            this.phoneAttributeName = phoneAttributeName;
+        }
+
+        public AuthenticationModes getMode() {
+            return mode;
+        }
+
+        public void setMode(final AuthenticationModes mode) {
+            this.mode = mode;
+        }
+
+        public boolean isAllowInternationalCalls() {
+            return allowInternationalCalls;
+        }
+
+        public void setAllowInternationalCalls(final boolean allowInternationalCalls) {
+            this.allowInternationalCalls = allowInternationalCalls;
+        }
+
+        public String getConfigDir() {
+            return configDir;
+        }
+
+        public void setConfigDir(final String configDir) {
+            this.configDir = configDir;
+        }
+
+        public String getPrivateKeyPassword() {
+            return privateKeyPassword;
+        }
+
+        public void setPrivateKeyPassword(final String privateKeyPassword) {
+            this.privateKeyPassword = privateKeyPassword;
+        }
+    }
+
+    public static class GAuth extends BaseProvider {
+        private static final long serialVersionUID = -7401748853833491119L;
         private String issuer = "CASIssuer";
         private String label = "CASLabel";
-        private int rank;
 
         private int codeDigits = 6;
         private long timeStepSize = 30;
         private int windowSize = 3;
 
+        private Mongodb mongodb = new Mongodb();
         private Jpa jpa = new Jpa();
+        private Json json = new Json();
+        private Rest rest = new Rest();
+
+        private Cleaner cleaner = new Cleaner();
+
+        public GAuth() {
+            setId("mfa-gauth");
+        }
+
+        public Rest getRest() {
+            return rest;
+        }
+
+        public void setRest(final Rest rest) {
+            this.rest = rest;
+        }
+
+        public Cleaner getCleaner() {
+            return cleaner;
+        }
+
+        public void setCleaner(final Cleaner cleaner) {
+            this.cleaner = cleaner;
+        }
+
+        public Json getJson() {
+            return json;
+        }
+
+        public void setJson(final Json json) {
+            this.json = json;
+        }
+
+        public Mongodb getMongodb() {
+            return mongodb;
+        }
+
+        public void setMongodb(final Mongodb mongodb) {
+            this.mongodb = mongodb;
+        }
 
         public Jpa getJpa() {
             return jpa;
@@ -675,14 +1092,6 @@ public class MultifactorAuthenticationProperties {
 
         public void setJpa(final Jpa jpa) {
             this.jpa = jpa;
-        }
-
-        public int getRank() {
-            return rank;
-        }
-
-        public void setRank(final int rank) {
-            this.rank = rank;
         }
 
         public int getCodeDigits() {
@@ -725,7 +1134,39 @@ public class MultifactorAuthenticationProperties {
             this.label = label;
         }
 
-        public static class Jpa {
+        public static class Json extends AbstractConfigProperties {
+        }
+
+        public static class Rest implements Serializable {
+            private String endpointUrl;
+
+            public String getEndpointUrl() {
+                return endpointUrl;
+            }
+
+            public void setEndpointUrl(final String endpointUrl) {
+                this.endpointUrl = endpointUrl;
+            }
+        }
+
+        public static class Mongodb extends AbstractMongoClientProperties {
+            private String tokenCollection;
+
+            public Mongodb() {
+                setCollection("MongoDbGoogleAuthenticatorRepository");
+                setTokenCollection("MongoDbGoogleAuthenticatorTokenRepository");
+            }
+
+            public String getTokenCollection() {
+                return tokenCollection;
+            }
+
+            public void setTokenCollection(final String tokenCollection) {
+                this.tokenCollection = tokenCollection;
+            }
+        }
+
+        public static class Jpa implements Serializable {
             private Database database = new Database();
 
             public Database getDatabase() {
@@ -740,6 +1181,36 @@ public class MultifactorAuthenticationProperties {
                 public Database() {
                     super.setUrl("jdbc:hsqldb:mem:cas-gauth");
                 }
+            }
+        }
+
+        public static class Cleaner {
+            private boolean enabled = true;
+            private String startDelay = "PT1M";
+            private String repeatInterval = "PT1M";
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(final boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getStartDelay() {
+                return startDelay;
+            }
+
+            public void setStartDelay(final String startDelay) {
+                this.startDelay = startDelay;
+            }
+
+            public String getRepeatInterval() {
+                return repeatInterval;
+            }
+
+            public void setRepeatInterval(final String repeatInterval) {
+                this.repeatInterval = repeatInterval;
             }
         }
     }

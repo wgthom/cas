@@ -1,8 +1,10 @@
 package org.apereo.cas.ticket.registry;
 
-
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteSource;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apereo.cas.ticket.ExpirationPolicy;
@@ -26,14 +28,17 @@ public class EncodedTicket implements Ticket {
 
     private byte[] encodedTicket;
 
-    /** Private ctor used for serialization only. **/
-    private EncodedTicket() {}
+    /**
+     * Private ctor used for serialization only.
+     **/
+    private EncodedTicket() {
+    }
 
     /**
      * Creates a new encoded ticket using the given encoder to encode the given
      * source ticket.
      *
-     * @param encodedTicket the encoded ticket
+     * @param encodedTicket   the encoded ticket
      * @param encodedTicketId the encoded ticket id
      */
     public EncodedTicket(final ByteSource encodedTicket, final String encodedTicketId) {
@@ -53,6 +58,11 @@ public class EncodedTicket implements Ticket {
     @Override
     public ExpirationPolicy getExpirationPolicy() {
         throw new UnsupportedOperationException("getExpirationPolicy() operation not supported");
+    }
+
+    @Override
+    public String getPrefix() {
+        return StringUtils.EMPTY;
     }
 
     @Override
@@ -93,5 +103,30 @@ public class EncodedTicket implements Ticket {
     @Override
     public int compareTo(final Ticket o) {
         return getId().compareTo(o.getId());
+    }
+
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+        if (obj.getClass() != getClass()) {
+            return false;
+        }
+        final EncodedTicket rhs = (EncodedTicket) obj;
+        return new EqualsBuilder()
+                .append(this.id, rhs.id)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 133)
+                .append(id)
+                .toHashCode();
     }
 }

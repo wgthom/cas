@@ -1,5 +1,7 @@
 package org.apereo.cas.validation;
 
+import org.apache.commons.lang3.BooleanUtils;
+import org.apereo.cas.CasProtocolConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
@@ -16,8 +18,7 @@ import javax.servlet.http.HttpServletRequest;
  */
 @Scope(value = "prototype")
 public abstract class AbstractCasProtocolValidationSpecification implements ValidationSpecification {
-    protected transient Logger logger = LoggerFactory.getLogger(this.getClass());
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCasProtocolValidationSpecification.class);
 
     /** Denotes whether we should always authenticate or not. */
     private boolean renew;
@@ -36,8 +37,7 @@ public abstract class AbstractCasProtocolValidationSpecification implements Vali
     public AbstractCasProtocolValidationSpecification(final boolean renew) {
         this.renew = renew;
     }
-
-
+    
     /**
      * Method to set the renew requirement.
      *
@@ -46,7 +46,6 @@ public abstract class AbstractCasProtocolValidationSpecification implements Vali
     public void setRenew(final boolean renew) {
         this.renew = renew;
     }
-
 
     /**
      * Method to determine if we require renew to be true.
@@ -59,7 +58,29 @@ public abstract class AbstractCasProtocolValidationSpecification implements Vali
 
     @Override
     public boolean isSatisfiedBy(final Assertion assertion, final HttpServletRequest request) {
-        return isSatisfiedByInternal(assertion) && (!this.renew || assertion.isFromNewLogin());
+        LOGGER.debug("Is validation specification set to enforce [{}] protocol behavior? [{}]. Is assertion issued from a new login? [{}]",
+                CasProtocolConstants.PARAMETER_RENEW,
+                BooleanUtils.toStringYesNo(this.renew),
+                BooleanUtils.toStringYesNo(assertion.isFromNewLogin()));
+        
+        boolean satisfied = isSatisfiedByInternal(assertion);
+        if (!satisfied) {
+            LOGGER.warn("[{}] is not internally satisfied by the produced assertion", getClass().getSimpleName());
+            return false;
+        }
+        satisfied = !this.renew || assertion.isFromNewLogin();
+        if (!satisfied) {
+            LOGGER.warn("[{}] is to enforce the [{}] CAS protocol behavior, yet the assertion is not issued from a new login",
+                    getClass().getSimpleName(), CasProtocolConstants.PARAMETER_RENEW);
+            return false;
+        }
+        LOGGER.debug("Validation specification is satisfied by the produced assertion");
+        return true;
+    }
+
+    @Override
+    public void reset() {
+        setRenew(false);
     }
 
     /**

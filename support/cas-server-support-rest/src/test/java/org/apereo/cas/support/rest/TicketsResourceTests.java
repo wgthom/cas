@@ -5,10 +5,10 @@ import org.apereo.cas.authentication.AuthenticationException;
 import org.apereo.cas.authentication.AuthenticationManager;
 import org.apereo.cas.authentication.AuthenticationResult;
 import org.apereo.cas.authentication.AuthenticationTransaction;
+import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.DefaultAuthenticationSystemSupport;
 import org.apereo.cas.authentication.DefaultAuthenticationTransactionManager;
 import org.apereo.cas.authentication.DefaultPrincipalElectionStrategy;
-import org.apereo.cas.authentication.TestUtils;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.authentication.principal.WebApplicationServiceFactory;
 import org.apereo.cas.ticket.InvalidTicketException;
@@ -20,7 +20,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -33,16 +33,21 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-
 /**
  * Unit tests for {@link TicketsResource}.
  *
  * @author Dmitriy Kopylenko
  * @since 4.0.0
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class TicketsResourceTests {
 
+    private static final String TICKETS_RESOURCE_URL = "/cas/v1/tickets";
+    private static final String USERNAME = "username";
+    private static final String OTHER_EXCEPTION = "Other exception";
+    private static final String SERVICE = "service";
+    private static final String TEST_VALUE = "test";
+    private static final String PASSWORD = "password";
     @Mock
     private CentralAuthenticationService casMock;
 
@@ -57,19 +62,14 @@ public class TicketsResourceTests {
     @Before
     public void setUp() throws Exception {
         final AuthenticationManager mgmr = mock(AuthenticationManager.class);
-        when(mgmr.authenticate(any(AuthenticationTransaction.class))).thenReturn(TestUtils.getAuthentication());
+        when(mgmr.authenticate(any(AuthenticationTransaction.class))).thenReturn(CoreAuthenticationTestUtils.getAuthentication());
+        when(ticketSupport.getAuthenticationFrom(anyString())).thenReturn(CoreAuthenticationTestUtils.getAuthentication());
 
-        this.ticketsResourceUnderTest.setAuthenticationSystemSupport(
-                new DefaultAuthenticationSystemSupport(
-                        new DefaultAuthenticationTransactionManager(mgmr),
-                        new DefaultPrincipalElectionStrategy()));
-        this.ticketsResourceUnderTest.getAuthenticationSystemSupport().getAuthenticationTransactionManager()
-                .setAuthenticationManager(mgmr);
-        this.ticketsResourceUnderTest.setWebApplicationServiceFactory(new WebApplicationServiceFactory());
-        this.ticketsResourceUnderTest.setCentralAuthenticationService(this.casMock);
+        this.ticketsResourceUnderTest = new TicketsResource(
+                new DefaultAuthenticationSystemSupport(new DefaultAuthenticationTransactionManager(mgmr),
+                new DefaultPrincipalElectionStrategy()), new DefaultCredentialFactory(), 
+                ticketSupport, new WebApplicationServiceFactory(), casMock);
 
-        when(this.ticketSupport.getAuthenticationFrom(anyString())).thenReturn(TestUtils.getAuthentication());
-        this.ticketsResourceUnderTest.setTicketRegistrySupport(ticketSupport);
         this.mockMvc = MockMvcBuilders.standaloneSetup(this.ticketsResourceUnderTest)
                 .defaultRequest(get("/")
                         .contextPath("/cas")
@@ -87,9 +87,9 @@ public class TicketsResourceTests {
 
         configureCasMockToCreateValidTGT();
 
-        this.mockMvc.perform(post("/cas/v1/tickets")
-                .param("username", "test")
-                .param("password", "test"))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL)
+                .param(USERNAME, TEST_VALUE)
+                .param(PASSWORD, TEST_VALUE))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/cas/v1/tickets/TGT-1"))
                 .andExpect(content().contentType(MediaType.TEXT_HTML))
@@ -100,31 +100,31 @@ public class TicketsResourceTests {
     public void creationOfTGTWithAuthenticationException() throws Throwable {
         configureCasMockTGTCreationToThrowAuthenticationException();
 
-        this.mockMvc.perform(post("/cas/v1/tickets")
-                .param("username", "test")
-                .param("password", "test"))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL)
+                .param(USERNAME, TEST_VALUE)
+                .param(PASSWORD, TEST_VALUE))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().json("{\"authentication_exceptions\" : [ \"LoginException\" ]}"));
     }
 
     @Test
     public void creationOfTGTWithUnexpectedRuntimeException() throws Throwable {
-        configureCasMockTGTCreationToThrow(new RuntimeException("Other exception"));
+        configureCasMockTGTCreationToThrow(new RuntimeException(OTHER_EXCEPTION));
 
-        this.mockMvc.perform(post("/cas/v1/tickets")
-                .param("username", "test")
-                .param("password", "test"))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL)
+                .param(USERNAME, TEST_VALUE)
+                .param(PASSWORD, TEST_VALUE))
                 .andExpect(status().is5xxServerError())
-                .andExpect(content().string("Other exception"));
+                .andExpect(content().string(OTHER_EXCEPTION));
     }
 
     @Test
     public void creationOfTGTWithBadPayload() throws Throwable {
-        configureCasMockTGTCreationToThrow(new RuntimeException("Other exception"));
+        configureCasMockTGTCreationToThrow(new RuntimeException(OTHER_EXCEPTION));
 
-        this.mockMvc.perform(post("/cas/v1/tickets")
-                .param("no_username_param", "test")
-                .param("no_password_param", "test"))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL)
+                .param("no_username_param", TEST_VALUE)
+                .param("no_password_param", TEST_VALUE))
                 .andExpect(status().is4xxClientError())
                 .andExpect(content().string("Invalid payload. 'username' and 'password' form fields are required."));
     }
@@ -133,8 +133,8 @@ public class TicketsResourceTests {
     public void normalCreationOfST() throws Throwable {
         configureCasMockToCreateValidST();
 
-        this.mockMvc.perform(post("/cas/v1/tickets/TGT-1")
-                .param("service", TestUtils.getService().getId()))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL + "/TGT-1")
+                .param(SERVICE, CoreAuthenticationTestUtils.getService().getId()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("text/plain;charset=ISO-8859-1"))
                 .andExpect(content().string("ST-1"));
@@ -144,25 +144,25 @@ public class TicketsResourceTests {
     public void creationOfSTWithInvalidTicketException() throws Throwable {
         configureCasMockSTCreationToThrow(new InvalidTicketException("TGT-1"));
 
-        this.mockMvc.perform(post("/cas/v1/tickets/TGT-1")
-                .param("service", TestUtils.getService().getId()))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL + "/TGT-1")
+                .param(SERVICE, CoreAuthenticationTestUtils.getService().getId()))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("TicketGrantingTicket could not be found"));
     }
 
     @Test
     public void creationOfSTWithGeneralException() throws Throwable {
-        configureCasMockSTCreationToThrow(new RuntimeException("Other exception"));
+        configureCasMockSTCreationToThrow(new RuntimeException(OTHER_EXCEPTION));
 
-        this.mockMvc.perform(post("/cas/v1/tickets/TGT-1")
-                .param("service", TestUtils.getService().getId()))
+        this.mockMvc.perform(post(TICKETS_RESOURCE_URL + "/TGT-1")
+                .param(SERVICE, CoreAuthenticationTestUtils.getService().getId()))
                 .andExpect(status().is5xxServerError())
-                .andExpect(content().string("Other exception"));
+                .andExpect(content().string(OTHER_EXCEPTION));
     }
 
     @Test
     public void deletionOfTGT() throws Throwable {
-        this.mockMvc.perform(delete("/cas/v1/tickets/TGT-1"))
+        this.mockMvc.perform(delete(TICKETS_RESOURCE_URL + "/TGT-1"))
                 .andExpect(status().isOk());
     }
 

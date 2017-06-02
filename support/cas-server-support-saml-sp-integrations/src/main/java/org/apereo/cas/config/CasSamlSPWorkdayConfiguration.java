@@ -1,15 +1,9 @@
 package org.apereo.cas.config;
 
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.services.ServicesManager;
-import org.apereo.cas.support.saml.services.SamlRegisteredService;
-import org.apereo.cas.util.SamlSPUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.apereo.cas.configuration.model.support.saml.sps.AbstractSamlSPProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import javax.annotation.PostConstruct;
 
 /**
  * This is {@link CasSamlSPWorkdayConfiguration}.
@@ -19,22 +13,10 @@ import javax.annotation.PostConstruct;
  */
 @Configuration("casSamlSPWorkdayConfiguration")
 @EnableConfigurationProperties(CasConfigurationProperties.class)
-public class CasSamlSPWorkdayConfiguration {
+public class CasSamlSPWorkdayConfiguration extends BaseCasSamlSPConfiguration {
 
-    @Autowired
-    private CasConfigurationProperties casProperties;
-
-    @Autowired
-    @Qualifier("servicesManager")
-    private ServicesManager servicesManager;
-
-    @PostConstruct
-    public void init() {
-        final SamlRegisteredService service = SamlSPUtils.newSamlServiceProviderService(casProperties.getSamlSP().getWorkday());
-        if (service != null) {
-            service.setSignResponses(true);
-            service.setSignAssertions(true);
-            SamlSPUtils.saveService(service, this.servicesManager);
-        }
+    @Override
+    protected AbstractSamlSPProperties getServiceProvider() {
+        return casProperties.getSamlSP().getWorkday();
     }
 }

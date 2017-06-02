@@ -18,9 +18,14 @@ public class DefaultRegisteredServiceMultifactorPolicy implements RegisteredServ
     private static final long serialVersionUID = -3068390754996358337L;
 
     private Set<String> multifactorAuthenticationProviders = new LinkedHashSet<>();
-    private FailureModes failureMode = FailureModes.CLOSED;
+
+    private FailureModes failureMode = FailureModes.NOT_SET;
+
     private String principalAttributeNameTrigger;
+
     private String principalAttributeValueToMatch;
+
+    private boolean bypassEnabled;
 
     /**
      * Instantiates a new Default registered service authentication policy.
@@ -64,6 +69,9 @@ public class DefaultRegisteredServiceMultifactorPolicy implements RegisteredServ
         this.principalAttributeValueToMatch = principalAttributeValueToMatch;
     }
 
+    public void setBypassEnabled(final boolean bypass) {
+        this.bypassEnabled = bypass;
+    }
 
     @Override
     public boolean equals(final Object obj) {
@@ -82,7 +90,13 @@ public class DefaultRegisteredServiceMultifactorPolicy implements RegisteredServ
                 .append(this.failureMode, rhs.failureMode)
                 .append(this.principalAttributeNameTrigger, rhs.principalAttributeNameTrigger)
                 .append(this.principalAttributeValueToMatch, rhs.principalAttributeValueToMatch)
+                .append(this.bypassEnabled, rhs.bypassEnabled)
                 .isEquals();
+    }
+
+    @Override
+    public boolean isBypassEnabled() {
+        return this.bypassEnabled;
     }
 
     @Override
@@ -92,9 +106,9 @@ public class DefaultRegisteredServiceMultifactorPolicy implements RegisteredServ
                 .append(this.failureMode)
                 .append(this.principalAttributeNameTrigger)
                 .append(this.principalAttributeValueToMatch)
+                .append(this.bypassEnabled)
                 .toHashCode();
     }
-
 
     @Override
     public String toString() {
@@ -103,6 +117,7 @@ public class DefaultRegisteredServiceMultifactorPolicy implements RegisteredServ
                 .append("failureMode", this.failureMode)
                 .append("principalAttributeNameTrigger", this.principalAttributeNameTrigger)
                 .append("principalAttributeValueToMatch", this.principalAttributeValueToMatch)
+                .append("bypassEnabled", this.bypassEnabled)
                 .toString();
     }
 }

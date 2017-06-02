@@ -1,0 +1,40 @@
+{
+  "name": "cas",
+  "version": "1.0.3",
+  "license": "Apache-2.0",
+  "description": "CAS UI automation",
+  "homepage": "http://apereo.github.io/cas",
+  "author": "Jeff Sittler",
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apereo/cas"
+  },
+  "keywords": [
+    "CAS",
+    "Central Authentication Service"
+  ],
+  "engines": {
+    "node": ">=5.11.0 <6.0"
+  },
+  "bugs": {
+    "url": "https://github.com/apereo/cas/issues"
+  },
+  "dependencies": {
+    "gulp": "^3.9.1",
+    "gulp-sass": "^2.2.0",
+    "bootstrap-sass": "~> 3.3.6",
+    "yargs": "^4.7.0",
+    "gulp-autoprefixer": "^3.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0",
+    "eslint-plugin-react": "^7.0.1",
+    "gulp": "^3.9.1",
+    "semistandard": "^11.0.0"
+  },
+  "scripts": {
+    "gulp": "gulp",
+    "lint": "eslint resources/static/**/*.js --quiet --color"
+  }
+}

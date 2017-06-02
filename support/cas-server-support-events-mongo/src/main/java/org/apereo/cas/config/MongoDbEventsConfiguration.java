@@ -2,7 +2,7 @@ package org.apereo.cas.config;
 
 import com.mongodb.MongoClientURI;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.support.events.dao.CasEventRepository;
+import org.apereo.cas.support.events.CasEventRepository;
 import org.apereo.cas.support.events.mongo.MongoDbCasEventRepository;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +11,7 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
+import org.springframework.data.mongodb.MongoDbFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
 
@@ -28,13 +29,11 @@ public class MongoDbEventsConfiguration {
     @Autowired
     private CasConfigurationProperties casProperties;
 
-
     @RefreshScope
     @Bean
     public PersistenceExceptionTranslationPostProcessor persistenceExceptionTranslationPostProcessor() {
         return new PersistenceExceptionTranslationPostProcessor();
     }
-
 
     @RefreshScope
     @Bean
@@ -42,10 +41,9 @@ public class MongoDbEventsConfiguration {
         return new MongoTemplate(mongoAuthNEventsDbFactory());
     }
 
-
     @RefreshScope
     @Bean
-    public SimpleMongoDbFactory mongoAuthNEventsDbFactory() {
+    public MongoDbFactory mongoAuthNEventsDbFactory() {
         try {
             return new SimpleMongoDbFactory(new MongoClientURI(casProperties.getEvents().getMongodb().getClientUri()));
         } catch (final Exception e) {

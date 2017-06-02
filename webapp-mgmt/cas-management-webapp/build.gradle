@@ -1,7 +1,11 @@
 apply plugin: "war"
-apply plugin: "spring-boot"
+apply plugin: "org.springframework.boot"
 
 description = "Apereo CAS Management Web Application"
+
+if (Boolean.getBoolean("enableJRebelAgent")) {
+    war.dependsOn(generateRebel)
+}
 
 javadoc {
     enabled false
@@ -9,12 +13,19 @@ javadoc {
 
 bootRun {
     addResources = true
+    def list = []
     if (Boolean.getBoolean("enableRemoteDebugging")) {
-        jvmArgs = ["-Xrunjdwp:transport=dt_socket,address=5000,server=y,suspend=n"]
+        list.add("-Xrunjdwp:transport=dt_socket,address=5000,server=y,suspend=n")
     }
+    if (Boolean.getBoolean("enableJRebelAgent")) {
+        def lib = System.getProperty("JREBEL_LIB_PATH")
+        list.add("-agentpath:$lib")
+        list.add("-Drebel.remoting_plugin=true")
+    }
+    jvmArgs = list
 }
 
-springBoot  {
+springBoot {
     mainClass = "org.apereo.cas.mgmt.web.CasManagementWebApplication"
 }
 
@@ -24,27 +35,24 @@ bootRepackage {
 }
 
 war {
-	def currentTime = java.time.ZonedDateTime.now()
-	
+    def currentTime = java.time.ZonedDateTime.now()
+
     manifest {
         attributes("Implementation-Title": project.name,
                 "Implementation-Vendor": project.group,
                 "Created-By": project.group,
                 "Implementation-Date": currentTime,
+                "Specification-Version": rootProject.currentRevision,
                 "Implementation-Version": project.version)
     }
     enabled = !rootProject.publishReleases && !rootProject.publishSnapshots
 }
 
 dependencies {
-    compile libraries.springboot
-    runtime project(":webapp-mgmt:cas-management-webapp-support")
-
+    runtimeOnly project(":webapp-mgmt:cas-management-webapp-support")
     providedRuntime libraries.springboottomcat
-    runtime libraries.hibernate
-    runtime libraries.groovy
-    compile libraries.spring
-    compile libraries.thmyeleaf
-    compile libraries.thymeleafdialect
-    compile libraries.thmyeleafboot
+    runtimeOnly libraries.groovy
+    implementation libraries.thymeleaf
+    implementation libraries.thymeleafdialect
+    implementation libraries.thymeleafboot
 }
